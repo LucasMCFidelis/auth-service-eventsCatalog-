@@ -1,6 +1,8 @@
 import Fastify from "fastify";
 import { authRoutes } from "./routes/authRoutes.js";
 import authPlugin from "./plugins/auth.js"
+import dotenv from 'dotenv';
+dotenv.config();
 
 const server = Fastify();
 

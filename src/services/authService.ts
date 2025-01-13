@@ -2,13 +2,11 @@ import axios from "axios";
 import { LoginUser } from "../interfaces/loginUserInterface.js";
 import { FastifyInstance } from "fastify";
 
-const userServiceUrl = process.env.USER_SERVICE_URL;
-
 async function loginUser(data: LoginUser) {
   const { userEmail, passwordProvided } = data;
-
+  
   // Validação das credenciais via serviço externo
-  const response = await axios.post(`${userServiceUrl}/validate-credentials`, {
+  const response = await axios.post(`${process.env.USER_SERVICE_URL}/validate-credentials`, {
     userEmail,
     passwordProvided,
   });
