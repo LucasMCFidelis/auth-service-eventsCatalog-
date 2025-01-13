@@ -1,0 +1,27 @@
+{
+  "name": "auth-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/server.js",
+    "dev": "tsx --watch --no-warnings src/server.js",
+    "build": "tsup src/server.ts --out-dir dist --dts --format esm --clean && cpy src/swagger.yaml dist/ --flat"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@fastify/jwt": "^9.0.3",
+    "axios": "^1.7.9",
+    "fastify": "^5.2.1"
+  }
+}
