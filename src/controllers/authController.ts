@@ -12,8 +12,9 @@ export async function loginUserRoute(
 
     // Gerar o token JWT com base nos dados do usuário retornados
     const userToken = request.server.generateToken({
-      id: userData.id,
-      email: userData.email,
+      userId: userData.userId,
+      userEmail: userData.userEmail,
+      roleName: userData.roleName,
     });
 
     return reply.status(200).send({ message: "Login bem-sucedido", userToken });

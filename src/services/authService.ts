@@ -11,12 +11,15 @@ async function loginUser(data: LoginUser) {
     passwordProvided,
   });
 
-  if (response.status === 200) {
-    // Retorna os dados do usuário para a rota
-    return response.data;
+  if (response.status !== 200) {
+    throw {
+      status: response.status,
+      message: response.data.message
+    }
   }
-
-  throw new Error("Credenciais inválidas");
+  
+  // Retorna os dados do usuário para a rota
+  return response.data;
 }
 
 async function validateUserToken(
