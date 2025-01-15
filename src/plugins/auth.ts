@@ -52,7 +52,7 @@ export default fp(async function (fastify) {
       return { valid: true, decoded };
     } catch (error) {
       console.error(error);
-      return { valid: false, message: "Token inválido ou expirado" };
+      throw { valid: false, message: "Token inválido ou expirado" };
     }
   });
 });
