@@ -4,21 +4,38 @@ import { FastifyInstance } from "fastify";
 
 async function loginUser(data: LoginUser) {
   const { userEmail, passwordProvided } = data;
-  
-  // Validação das credenciais via serviço externo
-  const response = await axios.post(`${process.env.USER_SERVICE_URL}/validate-credentials`, {
-    userEmail,
-    passwordProvided,
-  });
 
-  if (response.status !== 200) {
-    throw {
-      status: response.status,
-      message: response.data.message
+  // Validação das credenciais via serviço externo
+  let response;
+  try {
+    response = await axios.post(
+      `${process.env.USER_SERVICE_URL}/validate-credentials`,
+      {
+        userEmail,
+        passwordProvided,
+      }
+    );
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const statusCode = error.response?.status || 500;
+      const errorMessage =
+        error.response?.data?.message || "Erro ao validar credenciais";
+
+      throw {
+        status: statusCode,
+        message: errorMessage,
+        error: "Erro de autenticação",
+      };
     }
+
+    // Tratamento genérico para erros desconhecidos
+    throw {
+      status: 500,
+      message: "Erro interno ao validar credenciais",
+      error: "Erro no servidor",
+    };
   }
-  
-  // Retorna os dados do usuário para a rota
+
   return response.data;
 }
 
