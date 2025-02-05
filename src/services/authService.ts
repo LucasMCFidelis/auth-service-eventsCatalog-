@@ -1,8 +1,10 @@
 import axios from "axios";
 import { LoginUser } from "../interfaces/loginUserInterface.js";
 import { FastifyInstance } from "fastify";
+import { schemaUserLogin } from "../schemas/schemaUserLogin.js";
 
 async function loginUser(data: LoginUser) {
+  await schemaUserLogin.validateAsync(data)
   const { userEmail, passwordProvided } = data;
 
   // Validação das credenciais via serviço externo
