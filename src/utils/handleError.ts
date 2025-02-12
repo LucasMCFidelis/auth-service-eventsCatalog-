@@ -22,7 +22,7 @@ export function handleError(error: unknown, reply: FastifyReply) {
         console.error('Erro conhecido:', error);
         return reply.status(status).send({
             error: errorType,
-            message,
+            message: message.toLowerCase(),
         });
     }
 
@@ -30,6 +30,6 @@ export function handleError(error: unknown, reply: FastifyReply) {
     console.error('Erro desconhecido:', error);
     return reply.status(500).send({
         error: 'Erro no servidor',
-        message: 'Erro interno ao realizar operação',
+        message: 'Erro interno ao realizar operação'.toLowerCase(),
     });
 }
