@@ -2,6 +2,7 @@ import axios from "axios";
 import { LoginUser } from "../interfaces/loginUserInterface.js";
 import { FastifyInstance } from "fastify";
 import { schemaUserLogin } from "../schemas/schemaUserLogin.js";
+import { handleAxiosError } from "../utils/handleAxiosError.js";
 
 async function loginUser(data: LoginUser) {
   await schemaUserLogin.validateAsync(data)
@@ -18,27 +19,10 @@ async function loginUser(data: LoginUser) {
       }
     );
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const statusCode = error.response?.status || 500;
-      const errorMessage =
-        error.response?.data?.message || "Erro ao validar credenciais";
-
-      throw {
-        status: statusCode,
-        message: errorMessage,
-        error: "Erro de autenticação",
-      };
-    }
-
-    // Tratamento genérico para erros desconhecidos
-    throw {
-      status: 500,
-      message: "Erro interno ao validar credenciais",
-      error: "Erro no servidor",
-    };
+    handleAxiosError(error)
   }
 
-  return response.data;
+  return response?.data;
 }
 
 async function validateUserToken(
