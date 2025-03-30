@@ -1,10 +1,18 @@
 import Fastify from "fastify";
 import { authRoutes } from "./routes/authRoutes.js";
 import authPlugin from "./plugins/auth.js"
+import cors from "@fastify/cors";
 import dotenv from 'dotenv';
 dotenv.config();
 
 const server = Fastify();
+
+// Configurar o CORS
+server.register(cors, {
+  origin: "*", // Libera totalmente para testes
+  methods: ["POST"],
+  credentials: true,
+});
 
 // Registrar plugin de autenticação
 server.register(authPlugin);
