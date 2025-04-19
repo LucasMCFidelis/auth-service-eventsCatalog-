@@ -12,6 +12,12 @@ export default defineConfig({
     },
     baseUrl: resolveServiceUrl("AUTH"),
   },
+  reporter: "mochawesome",
+  reporterOptions: {
+    reportDir: "cypress/reports",
+    overwrite: false,
+    html: true,
+  },
   env: {
     USER_SERVICE_URL: resolveServiceUrl("USER"),
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,

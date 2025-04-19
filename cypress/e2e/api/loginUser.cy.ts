@@ -2,16 +2,17 @@
 import { faker } from "@faker-js/faker";
 
 describe("Autenticação - Login", () => {
+  const userServiceUrl = Cypress.env("USER_SERVICE_URL")
   const userEmail = faker.internet.email();
-  const password = "user@123SS";
+  const password = "Teste!@eee1111";
 
   before(() => {
     cy.api({
       method: "POST",
-      url: `${Cypress.env("USER_SERVICE_URL")}/users`,
+      url: `${userServiceUrl}/users`,
       body: {
         firstName: faker.person.firstName(),
-        lastName: faker.person.lastName(),
+        lastName: faker.person.middleName() + faker.person.lastName(),
         email: userEmail,
         password: password,
       },
