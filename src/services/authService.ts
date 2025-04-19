@@ -3,16 +3,18 @@ import { LoginUser } from "../interfaces/loginUserInterface.js";
 import { FastifyInstance } from "fastify";
 import { schemaUserLogin } from "../schemas/schemaUserLogin.js";
 import { handleAxiosError } from "../utils/handleAxiosError.js";
+import { resolveServiceUrl } from "../utils/resolveServiceUrl.js";
 
 async function loginUser(data: LoginUser) {
   await schemaUserLogin.validateAsync(data)
   const { userEmail, passwordProvided } = data;
+  const userServiceUrl = resolveServiceUrl("USER")
 
   // Validação das credenciais via serviço externo
   let response;
   try {
     response = await axios.post(
-      `${process.env.USER_SERVICE_URL}/validate-credentials`,
+      `${userServiceUrl}/users/validate-credentials`,
       {
         userEmail,
         passwordProvided,
