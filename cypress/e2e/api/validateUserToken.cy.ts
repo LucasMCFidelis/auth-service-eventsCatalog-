@@ -21,7 +21,7 @@ describe("Autenticação - Validação de Token", () => {
     });
   });
 
-  it("Deve retornar 200 com token válido", () => {
+  it("Com token válido - Deve retornar 200", () => {
     cy.api({
       method: "POST",
       url: `/validate-token`,
@@ -36,7 +36,7 @@ describe("Autenticação - Validação de Token", () => {
     });
   });
 
-  it("Deve retornar 401 com token inválido", () => {
+  it("Com token inválido - Deve retornar 401", () => {
     cy.api({
       method: "POST",
       url: `/validate-token`,
@@ -50,7 +50,7 @@ describe("Autenticação - Validação de Token", () => {
     });
   });
 
-  it("Deve retornar 400 quando o header não for enviado", () => {
+  it("Quando o header não for enviado - Deve retornar 400", () => {
     cy.api({
       method: "POST",
       url: `/validate-token`,

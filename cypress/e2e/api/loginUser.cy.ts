@@ -21,7 +21,7 @@ describe("Autenticação - Login", () => {
     });
   });
 
-  it("Deve retornar 200 e token com credenciais válidas", () => {
+  it("com credenciais válidas - Deve retornar 200", () => {
     cy.api({
       method: "POST",
       url: "/login",
@@ -36,7 +36,7 @@ describe("Autenticação - Login", () => {
     });
   });
 
-  it("Deve retornar 401 com senha incorreta", () => {
+  it("com senha incorreta - Deve retornar 401", () => {
     cy.api({
       method: "POST",
       url: "/login",
@@ -53,7 +53,7 @@ describe("Autenticação - Login", () => {
     });
   });
 
-  it("Deve retornar 400 com e-mail em branco", () => {
+  it("com e-mail em branco - Deve retornar 400", () => {
     cy.api({
       method: "POST",
       url: "/login",
@@ -70,7 +70,7 @@ describe("Autenticação - Login", () => {
     });
   });
 
-  it("Deve retornar 400 quando o body não incluir email", () => {
+  it("quando o body não incluir email - Deve retornar 400", () => {
     cy.api({
       method: "POST",
       url: "/login",
@@ -84,7 +84,7 @@ describe("Autenticação - Login", () => {
     });
   });
 
-  it("Deve retornar 400 quando o body não incluir senha", () => {
+  it("quando o body não incluir senha - Deve retornar 400", () => {
     cy.api({
       method: "POST",
       url: "/login",
@@ -98,7 +98,7 @@ describe("Autenticação - Login", () => {
     });
   });
 
-  it("Deve retornar 400 quando o body incluir campo não esperado", () => {
+  it("quando o body incluir campo não esperado - Deve retornar 400", () => {
     cy.api({
       method: "POST",
       url: "/login",
