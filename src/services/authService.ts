@@ -5,10 +5,10 @@ import { schemaUserLogin } from "../schemas/schemaUserLogin.js";
 import { handleAxiosError } from "../utils/handleAxiosError.js";
 import { resolveServiceUrl } from "../utils/resolveServiceUrl.js";
 
-async function loginUser(data: LoginUser) {
-  await schemaUserLogin.validateAsync(data)
+async function loginUser(data: LoginUser, scenario?: string) {
+  await schemaUserLogin.validateAsync(data);
   const { userEmail, passwordProvided } = data;
-  const userServiceUrl = resolveServiceUrl("USER")
+  const userServiceUrl = resolveServiceUrl("USER");
 
   // Validação das credenciais via serviço externo
   let response;
@@ -18,10 +18,17 @@ async function loginUser(data: LoginUser) {
       {
         userEmail,
         passwordProvided,
-      }
+      },
+      scenario
+        ? {
+            headers: {
+              "x-mock-scenario": scenario,
+            },
+          }
+        : {}
     );
   } catch (error) {
-    handleAxiosError(error)
+    handleAxiosError(error);
   }
 
   return response?.data;

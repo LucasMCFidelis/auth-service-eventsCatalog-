@@ -8,7 +8,14 @@ export async function loginUserRoute(
   reply: FastifyReply
 ) {
   try {
-    const userData = await authService.loginUser(request.body);
+    const scenarioHeader = request.headers["x-mock-scenario"];
+
+    const scenario =
+      process.env.MOCK_USER === "true" && typeof scenarioHeader === "string"
+        ? scenarioHeader
+        : undefined;
+
+    const userData = await authService.loginUser(request.body, scenario);
 
     // Gerar o token JWT com base nos dados do usuário retornados
     const userToken = request.server.generateToken({
