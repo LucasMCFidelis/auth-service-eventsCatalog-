@@ -52,7 +52,8 @@ jobs:
           MOCK_USER: "true"
           USER_SERVICE_URL_DEV: http://localhost:8089
         run: |
-          npm run start:dev
+          npm run start:dev &
+          sleep 5
 
       # 6️⃣ Rodar testes Postman
       - name: Install Newman
