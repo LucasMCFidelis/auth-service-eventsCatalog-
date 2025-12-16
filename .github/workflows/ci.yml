@@ -1,0 +1,75 @@
+name: AuthService CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout authService
+      - name: Checkout authService
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build authService
+        run: npm run build
+
+      # 2️⃣ Checkout collections + WireMock mappings
+      - name: Checkout API tests
+        uses: actions/checkout@v4
+        with:
+          repository: LucasMCFidelis/collectionTestApiAuthService
+          path: api-tests
+
+      # 3️⃣ Subir WireMock (userService fake)
+      - name: Start userService mock
+        run: |
+          docker run -d \
+            -p 8089:8080 \
+            -v ${{ github.workspace }}/api-tests/postman/wiremock:/home/wiremock \
+            wiremock/wiremock
+
+      # 4️⃣ Gerar JWT_SECRET dinâmico
+      - name: Generate JWT secret
+        run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> $GITHUB_ENV
+
+      # 5️⃣ Subir authService
+      - name: Start authService
+        env:
+          NODE_ENV: development
+          MOCK_USER: "true"
+          USER_SERVICE_URL_DEV: http://localhost:8089
+        run: |
+          npm run start:dev
+
+      # 6️⃣ Rodar testes Postman
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Instalar o reporter HTML
+        run: npm install -g newman-reporter-html
+
+      - name: Run API tests
+        run: |
+          newman run \
+            api-tests/postman/collections/36785755-26c69ced-5bf1-4f6b-8eb4-1e129ddd9cb4.json \
+            -e api-tests/postman/environments/ci.environment.json \
+            --reporters cli,html --reporter-html-export relatorio.html
+      
+      - name: Salvar o relatório como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-newman
+          path: relatorio.html
