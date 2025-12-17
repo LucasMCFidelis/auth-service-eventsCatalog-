@@ -33,12 +33,18 @@ jobs:
           repository: LucasMCFidelis/collectionTestApiAuthService
           path: api-tests
 
+      - name: Checkout mock userService
+        uses: actions/checkout@v4
+        with:
+          repository: LucasMCFidelis/collectionTestApiUserService
+          path: user-mock
+
       # 3️⃣ Subir WireMock (userService fake)
       - name: Start userService mock
         run: |
           docker run -d \
             -p 8089:8080 \
-            -v ${{ github.workspace }}/api-tests/postman/wiremock:/home/wiremock \
+            -v ${{ github.workspace }}/user-mock/postman/wiremock:/home/wiremock \
             wiremock/wiremock
 
       # 4️⃣ Gerar JWT_SECRET dinâmico
