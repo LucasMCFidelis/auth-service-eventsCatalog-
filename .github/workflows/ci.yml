@@ -65,7 +65,7 @@ jobs:
       - name: Install Newman
         run: npm install -g newman
 
-      - name: Instalar o reporter HTML
+      - name: Install Newman reporter HTML
         run: npm install -g newman-reporter-html
 
       - name: Run API tests
@@ -75,7 +75,7 @@ jobs:
             -e api-tests/postman/environments/ci.environment.json \
             --reporters cli,html --reporter-html-export relatorio.html
       
-      - name: Salvar o relatório como artefato
+      - name: Save report html to artifacts
         uses: actions/upload-artifact@v4
         with:
           name: relatorio-newman
