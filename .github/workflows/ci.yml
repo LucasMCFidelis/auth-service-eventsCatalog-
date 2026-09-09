@@ -71,7 +71,7 @@ jobs:
       - name: Run API tests
         run: |
           newman run \
-            api-tests/postman/collections/36785755-26c69ced-5bf1-4f6b-8eb4-1e129ddd9cb4.json \
+            api-tests/postman/collections/auth-service.postman_collection.json \
             -e api-tests/postman/environments/ci.environment.json \
             --reporters cli,html --reporter-html-export relatorio.html
       

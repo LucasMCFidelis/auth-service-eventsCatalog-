@@ -125,7 +125,7 @@ O `npm run dev` sobe o serviço com hot-reload (`tsx --watch`), lendo as variáv
 
 ```bash
 cd collectionTestApiAuthService 
-newman run postman/collections/36785755-26c69ced-5bf1-4f6b-8eb4-1e129ddd9cb4.json -e postman/environments/local-mock.environment.json
+newman run postman/collections/auth-service.postman_collection.json -e postman/environments/local-mock.environment.json
 ```
 
 O `local-mock.environment.json` já vem configurado com `useMock=true`, `auth_service_url=http://localhost:3232/auth` e `user_service_url=http://localhost:8089/users` — a mesma configuração usada no `ci.environment.json`, mas destinada à execução manual local em vez do pipeline de CI.
