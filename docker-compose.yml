@@ -1,0 +1,73 @@
+name: auth-service
+
+# Modos (via profiles):
+#   test: docker compose --profile test up --build --exit-code-from tests   (o mesmo comando roda na CI)
+#
+# Convenção (igual nos 3 repos): app-* e db-* = ESTE serviço; o resto = dependências.
+# Todo serviço/mock responde pelo mesmo hostname em qualquer modo
+# (user-service, auth-service, email-service). Porta interna de todos: 8080.
+
+x-app-env: &app-env
+  USER_SERVICE_URL_DEV: http://user-service:8080
+  JWT_SECRET: ${JWT_SECRET:-}
+
+services:
+  # ============================ TEST ============================
+  # auth-service REAL (mesma imagem de prod).
+  # userService = WireMock. Testes = Newman (coleção em outro repo).
+  app-test:
+    profiles: [test]
+    build:
+      context: .
+      target: prod
+    environment:
+      <<: *app-env
+      # Hoje a CI roda com NODE_ENV=development (o app escolhe *_DEV por causa disso).
+      MOCK_USER: "true"
+      START_SCRIPT: "start:dev"
+    ports: ["8081:8080"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(8080, '127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      user-service-mock: { condition: service_started }
+    networks:
+      default:
+        aliases: [auth-service]
+
+  user-service-mock:
+    profiles: [test]
+    build:
+      context: ${USER_MOCK_GIT:-https://github.com/LucasMCFidelis/collectionTestApiUserService.git#main}
+      dockerfile: docker/mock.Dockerfile
+    networks:
+      default:
+        aliases: [user-service]
+
+  tests:
+    profiles: [test]
+    build:
+      context: ${API_TESTS_GIT:-https://github.com/LucasMCFidelis/collectionTestApiAuthService.git#main}
+      dockerfile: docker/tests-runner.Dockerfile
+    command:
+      - run
+      - postman/collections/auth-service.postman_collection.json
+      - -e
+      - postman/environments/ci.environment.json
+      - -r
+      - cli,htmlextra
+      - --reporter-htmlextra-export
+      - reports/relatorio.html
+    volumes:
+      - ./reports:/etc/newman/reports
+    depends_on:
+      app-test: { condition: service_healthy }
