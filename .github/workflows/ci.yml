@@ -14,69 +14,27 @@ jobs:
       # 1️⃣ Checkout authService
       - name: Checkout authService
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build authService
-        run: npm run build
-
-      # 2️⃣ Checkout collections + WireMock mappings
-      - name: Checkout API tests
-        uses: actions/checkout@v4
-        with:
-          repository: LucasMCFidelis/collectionTestApiAuthService
-          path: api-tests
-
-      - name: Checkout mock userService
-        uses: actions/checkout@v4
-        with:
-          repository: LucasMCFidelis/collectionTestApiUserService
-          path: user-mock
-
-      # 3️⃣ Subir WireMock (userService fake)
-      - name: Start userService mock
-        run: |
-          docker run -d \
-            -p 8089:8080 \
-            -v ${{ github.workspace }}/user-mock/wiremock:/home/wiremock \
-            wiremock/wiremock
-
-      # 4️⃣ Gerar JWT_SECRET dinâmico
+      
+      # 2️⃣ Gerar JWT_SECRET dinâmico
       - name: Generate JWT secret
         run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> $GITHUB_ENV
 
-      # 5️⃣ Subir authService
-      - name: Start authService
-        env:
-          NODE_ENV: development
-          MOCK_USER: "true"
-          USER_SERVICE_URL_DEV: http://localhost:8089
+      # 3️⃣ Subir ambiente de teste
+      - name: Setup Ambiente
         run: |
-          npm run start:dev &
-          sleep 5
+          docker compose --profile test up -d --build
 
-      # 6️⃣ Rodar testes Postman
-      - name: Install Newman
-        run: npm install -g newman
-
-      - name: Install Newman reporter HTML
-        run: npm install -g newman-reporter-htmlextra
-
-      - name: Run API tests
+      # 4️⃣ Parar e remover containers
+      - name: Stop and remove containers
+        if: always()
         run: |
-          newman run \
-            api-tests/postman/collections/auth-service.postman_collection.json \
-            -e api-tests/postman/environments/ci.environment.json \
-            --reporters cli,htmlextra --reporter-htmlextra-export relatorio.html
-      
+          docker compose --profile test down -v
+
+      # 5️⃣ Salvar relatório
       - name: Save report html to artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: relatorio-newman
-          path: relatorio.html
+          path: reports/relatorio.html
+          if-no-files-found: warn
