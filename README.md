@@ -27,31 +27,41 @@ O modo mock só é ativado com `MOCK_USER="true"` + header `x-mock-scenario` na 
 
 Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — roda em push/PR para `main`/`develop`.
 
-1. Build do AuthService (`npm ci` + `npm run build`) — funciona como smoke test.
-2. Checkout dos repositórios de teste (`collectionTestApiAuthService` e `collectionTestApiUserService`).
-3. Sobe o **WireMock** (porta `8089`) com os mappings do UserService mockado.
-4. Gera um `JWT_SECRET` novo a cada execução (`openssl rand -hex 32`).
-5. Sobe o **AuthService real**, com `MOCK_USER=true` e apontando para o WireMock.
-6. Executa a collection com **Newman**, usando o `ci.environment.json`.
-7. Publica o relatório HTML do Newman como artifact do GitHub Actions.
+Toda a orquestração dos testes foi movida para o [`docker-compose.yml`](docker-compose.yml), no profile `test`. A pipeline em si ficou enxuta: ela só gera o segredo e delega tudo ao Compose.
+
+1. Checkout do AuthService (este repo).
+2. Gera um `JWT_SECRET` novo a cada execução (`openssl rand -hex 32`) e exporta como variável de ambiente.
+3. Sobe o ambiente de teste com `docker compose --profile test up -d --build`, que builda e orquestra três serviços:
+   - **`app-test`**: a imagem real do AuthService (mesmo `Dockerfile` de produção, estágio `prod`), rodando com `START_SCRIPT=start:dev` e `MOCK_USER=true`.
+   - **`user-service-mock`**: builda a imagem de mock direto do repositório [`collectionTestApiUserService`](https://github.com/LucasMCFidelis/collectionTestApiUserService) (via `docker/mock.Dockerfile` no contexto do repo), publicando-se na rede como `user-service`.
+   - **`tests`**: builda a imagem de execução do Newman direto do repositório [`collectionTestApiAuthService`](https://github.com/LucasMCFidelis/collectionTestApiAuthService) (via `docker/tests-runner.Dockerfile`), rodando a collection contra o `app-test` assim que ele fica *healthy* (`healthcheck` na porta `8080`).
+4. Ao final, para e remove os containers/volumes (`docker compose --profile test down -v`).
+5. Publica o relatório HTML do Newman (`reports/relatorio.html`, montado via volume pelo serviço `tests`) como artifact do GitHub Actions — mesmo em caso de falha.
+
+Não há mais checkout manual dos repositórios de teste nem subida manual de WireMock/Newman na pipeline: o próprio Compose builda cada peça a partir do seu repositório Git (`USER_MOCK_GIT` e `API_TESTS_GIT`, com `#main` como padrão).
 
 ### Diagrama do fluxo
 
 ```
-┌─────────────────────┐     x-mock-scenario       ┌───────────────────────┐
-│   Newman (Postman)  |─────────────────────────> |  AuthService (real)   │
-│  collectionTestApi- │                           │  npm run start:dev    │
-│    AuthService      │<───────────────────────── |  MOCK_USER=true       │
-└─────────────────────┘   200/400/401/404 + JWT   └──────────┬────────────┘
-                                                             │
-                                                             │ POST /users/validate-credentials
-                                                             │ (com x-mock-scenario)
-                                                             ▼
-                                                     ┌──────────────────────┐
-                                                     │  WireMock (mock do   │
-                                                     │  UserService)        │
-                                                     │  porta 8089          │
-                                                     └──────────────────────┘
+docker compose --profile test up --build --exit-code-from tests
+
+┌────────────────────────┐   x-mock-scenario   ┌─────────────────────────┐
+│  tests (Newman)        │ ───────────────────>│  app-test               │
+│  build: repo           │                     │  (AuthService real)     │
+│  collectionTestApi-    │ <────────────────── │  MOCK_USER=true         │
+│  AuthService           │  200/400/401/404    │  START_SCRIPT=start:dev │
+│  depends_on: app-test  │      + JWT          └────────────┬────────────┘
+│  (service_healthy)     │                                  │
+└────────────────────────┘                                  │ POST /users/validate-credentials
+        │                                                   │ (com x-mock-scenario)
+        │ volume                                            ▼
+        ▼                                        ┌──────────────────────────┐
+┌────────────────────┐                           │  user-service-mock       │
+│  ./reports/        │                           │  build: repo             │
+│  relatorio.html    │                           │  collectionTestApiUser-  │
+└────────────────────┘                           │  Service (WireMock)      │
+                                                 │  alias: user-service     │
+                                                 └──────────────────────────┘
 ```
 
 ### O que a pipeline garante
@@ -65,84 +75,95 @@ Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — roda em pus
 
 ## 🚀 Reproduzindo os testes localmente
 
-Esse passo a passo sobe o AuthService em **modo de desenvolvimento** (`npm run dev`), apontando para o UserService mockado (WireMock), e roda a collection de testes contra esse ambiente local — usando o environment **`local-mock`**, equivalente ao `ci` mas pensado para execução manual na máquina do desenvolvedor.
+Esse ambiente é o mesmo usado na CI, orquestrado pelo [`docker-compose.yml`](docker-compose.yml) através do profile `test`. Não é mais necessário clonar os repositórios de teste manualmente nem instalar Newman/WireMock na máquina — o Compose builda tudo (AuthService real, mock do UserService e o runner do Newman) a partir das imagens/contextos definidos no arquivo.
 
 ### Pré-requisitos
-- Node.js e npm
-- Docker
-- Newman (`npm install -g newman`)
+- Docker + Docker Compose
 
-### 1. Clone os três repositórios lado a lado
+### 1. Clone este repositório
 
 ```bash
 git clone https://github.com/LucasMCFidelis/auth-service-eventsCatalog-.git
-git clone https://github.com/LucasMCFidelis/collectionTestApiAuthService.git
-git clone https://github.com/LucasMCFidelis/collectionTestApiUserService.git
-```
-
-Isso cria três pastas irmãs — os comandos abaixo assumem esse layout (ajuste os caminhos se organizar diferente).
-
-### 2. Suba o UserService mockado (WireMock)
-
-```bash
-docker run -d --name wiremock-user-service -p 8089:8080 -v "$(pwd)/collectionTestApiUserService/postman/wiremock:/home/wiremock" wiremock/wiremock
-```
-
-Isso sobe o WireMock na porta `8089`, servindo os *mappings* de `collectionTestApiUserService/postman/wiremock/mappings` — cada arquivo representa um cenário (`SUCCESS_VALIDATE_USER`, `SUCCESS_VALIDATE_ADMIN`, credenciais inválidas, usuário não encontrado, etc.), acionado pelo header `X-Mock-Scenario` enviado nas requisições de teste.
-
-### 3. Instale as dependências do AuthService
-
-```bash
 cd auth-service-eventsCatalog-
-npm install
 ```
 
-### 4. Configure o `.env` para apontar para o mock
-
+### 2. Copie o `.env.example` para `.env`
+ 
 ```bash
 cp .env.example .env
 ```
-
-No `.env` gerado, ajuste (ou confirme) as seguintes variáveis para que o serviço, em modo dev, use o UserService mockado:
-
+ 
+O Compose lê o `.env` da raiz do projeto automaticamente. Conteúdo esperado (ajuste conforme necessário):
+ 
 ```env
-NODE_ENV=development
+# Servidor
+PORT=8082
+HOST=localhost
+ 
+# JWT
+JWT_SECRET=
+ 
+# UserService
+USER_SERVICE_URL_DEV=http://localhost:8081
+USER_SERVICE_URL_PROD=
+ 
+# Testes / mock
 MOCK_USER=true
-USER_SERVICE_URL_DEV=http://localhost:8089
+ 
+# Caminho para os repositórios de teste (opcional — só para usar versões locais em vez de puxar do GitHub)
+USER_MOCK_GIT=../collectionTestApiUserService
+API_TESTS_GIT=../collectionTestApiAuthService
 ```
+ 
+O que é obrigatório preencher:
+ 
+- **`JWT_SECRET`**: **obrigatória**. O AuthService encerra na inicialização se ela não estiver definida. Qualquer string serve como valor para teste.
+- **`USER_SERVICE_URL_DEV`**: já vem preenchida no `.env.example` apontando para o mock (`http://localhost:8081`);
 
-`MOCK_USER=true` é o que habilita o AuthService a repassar o header `x-mock-scenario` das requisições de teste para o UserService — sem essa flag, o header é ignorado.
+O que é opcional:
+ 
+- **`PORT`** / **`HOST`**: usados só se você rodar o serviço fora do Docker (`npm run dev`); para o fluxo com `docker compose --profile test`, a porta exposta é a definida no `docker-compose.yml` (`8082:8080`).
+- **`USER_SERVICE_URL_PROD`**: só necessária em produção.
+- **`MOCK_USER`**: controla se o header `x-mock-scenario` é repassado ao UserService; mantenha `true` para os testes locais.
+- **`USER_MOCK_GIT`** / **`API_TESTS_GIT`**: só precisam ser definidas se você quiser buildar os serviços `user-service-mock`/`tests` a partir de uma pasta local em vez do repositório no GitHub (veja o passo 3).
 
-### 5. Suba o AuthService em modo dev
-
+### 3. Suba o ambiente de teste
+ 
 ```bash
-npm run dev
+docker compose --profile test up --build --exit-code-from tests
 ```
-
-O `npm run dev` sobe o serviço com hot-reload (`tsx --watch`), lendo as variáveis do `.env` via `dotenv`, disponível em `http://localhost:3232`. Deixe esse terminal aberto rodando o serviço.
-
-### 6. Rode a collection com Newman, em outro terminal
-
+ 
+Esse é o **mesmo comando usado na CI**. Ele builda e sobe, na ordem certa:
+ 
+- **`app-test`**: o AuthService real (imagem de produção, `START_SCRIPT=start:dev`, `MOCK_USER=true`), aguardando ficar *healthy*.
+- **`user-service-mock`**: buildado direto do repositório [`collectionTestApiUserService`](https://github.com/LucasMCFidelis/collectionTestApiUserService) (`docker/mock.Dockerfile`), exposto na rede interna como `user-service` — os *mappings* de cada cenário (`SUCCESS_VALIDATE_USER`, `SUCCESS_VALIDATE_ADMIN`, credenciais inválidas, usuário não encontrado, etc.) ficam nesse repositório e são acionados pelo header `X-Mock-Scenario`.
+- **`tests`**: buildado direto do repositório [`collectionTestApiAuthService`](https://github.com/LucasMCFidelis/collectionTestApiAuthService) (`docker/tests-runner.Dockerfile`), executando a collection com Newman contra o `app-test` assim que ele estiver saudável.
+`--exit-code-from tests` faz o comando terminar com o código de saída do container `tests`, refletindo o resultado da collection (útil para checar sucesso/falha localmente).
+ 
+Para usar uma versão local dos repositórios de teste em vez de puxar do GitHub (por exemplo, para testar um mapping ou um caso novo antes de dar push), defina `USER_MOCK_GIT`/`API_TESTS_GIT` no `.env` (passo 2) apontando para as pastas locais, ou passe-as inline:
+ 
 ```bash
-cd collectionTestApiAuthService 
-newman run postman/collections/auth-service.postman_collection.json -e postman/environments/local-mock.environment.json
+USER_MOCK_GIT=../collectionTestApiUserService \
+API_TESTS_GIT=../collectionTestApiAuthService \
+docker compose --profile test up --build --exit-code-from tests
 ```
-
-O `local-mock.environment.json` já vem configurado com `useMock=true`, `auth_service_url=http://localhost:3232/auth` e `user_service_url=http://localhost:8089/users` — a mesma configuração usada no `ci.environment.json`, mas destinada à execução manual local em vez do pipeline de CI.
-
-### 7. Encerre o ambiente
-
+ 
+### 4. Veja o relatório
+ 
+O relatório HTML do Newman é gerado em `./reports/relatorio.html` (montado como volume pelo serviço `tests`) e pode ser aberto direto no navegador.
+ 
+### 5. Encerre e limpe o ambiente
+ 
 ```bash
-# Ctrl+C no terminal do AuthService
-docker rm -f wiremock-user-service
+docker compose --profile test down -v
 ```
-
+ 
 Detalhes de cada cenário de teste (login e validação de token) estão documentados no README do repositório [`collectionTestApiAuthService`](https://github.com/LucasMCFidelis/collectionTestApiAuthService).
-
+ 
 ---
-
+ 
 ## 🔑 Variáveis de ambiente relevantes para os testes
-
+ 
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `JWT_SECRET` | ✔️ | Segredo para assinar/verificar tokens JWT. |
