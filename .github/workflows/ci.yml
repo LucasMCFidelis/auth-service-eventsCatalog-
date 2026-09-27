@@ -22,15 +22,20 @@ jobs:
       # 3️⃣ Subir ambiente de teste
       - name: Setup Ambiente
         run: |
-          docker compose --profile test up -d --build
+          docker compose --profile test up -d --build --scale tests=0
 
-      # 4️⃣ Parar e remover containers
+      # 4️⃣ Executar testes Postman/Newman
+      - name: Run Newman Tests
+        run: |
+          docker compose --profile test run --rm tests
+
+      # 5️⃣ Parar e remover containers
       - name: Stop and remove containers
         if: always()
         run: |
           docker compose --profile test down -v
 
-      # 5️⃣ Salvar relatório
+      # 6️⃣ Salvar relatório
       - name: Save report html to artifacts
         if: always()
         uses: actions/upload-artifact@v4
