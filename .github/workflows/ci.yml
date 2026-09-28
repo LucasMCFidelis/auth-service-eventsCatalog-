@@ -29,13 +29,25 @@ jobs:
         run: |
           docker compose --profile test run --rm tests
 
-      # 5️⃣ Parar e remover containers
+      # 5️⃣ Salvar logs do compose em caso de falha
+      - name: Collect compose logs
+        if: failure()
+        run: docker compose --profile test logs --no-color > compose-test.log
+
+      - name: Save compose logs (test)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs-test
+          path: compose-test.log
+
+      # 6️⃣ Parar e remover containers
       - name: Stop and remove containers
         if: always()
         run: |
           docker compose --profile test down -v
 
-      # 6️⃣ Salvar relatório
+      # 7️⃣ Salvar relatório
       - name: Save report html to artifacts
         if: always()
         uses: actions/upload-artifact@v4
